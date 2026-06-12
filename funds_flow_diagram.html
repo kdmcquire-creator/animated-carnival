@@ -32,13 +32,23 @@ path.lnk{cursor:pointer;transition:fill-opacity .1s}path.lnk:hover{fill-opacity:
 path.lnk.sel{fill-opacity:.85!important;stroke:#001830;stroke-width:.6}
 rect.node{cursor:pointer}
 #box{position:absolute;display:none;z-index:20;min-width:300px;max-width:390px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,16,48,.22);padding:12px 14px;font-size:12px}
-#box h4{margin:0 0 2px;font-size:13px;color:var(--navy)}#box .sub2{font-size:11px;color:var(--dim);margin-bottom:8px;font-family:'JetBrains Mono',monospace}
-#box table{width:100%;border-collapse:collapse}#box td{padding:3px 0;vertical-align:top;border-top:1px solid var(--border)}
-#box td.a{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent);text-align:right;white-space:nowrap;padding-left:10px}
-#box td.d{font-family:'JetBrains Mono',monospace;color:var(--faint);white-space:nowrap;font-size:10.5px}
-#box .x{position:absolute;top:8px;right:11px;cursor:pointer;color:var(--faint);font-weight:700}
+#scrim{position:fixed;inset:0;background:rgba(0,16,48,.28);z-index:30;display:none}#scrim.open{display:block}
+#drawer{position:fixed;top:0;right:0;height:100%;width:470px;max-width:94vw;background:#fff;z-index:31;display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(0,16,48,.22);transform:translateX(100%);transition:transform .22s ease}
+#drawer.open{transform:none}
+#dhead{position:relative;background:var(--navy);color:#fff;padding:16px 18px}
+#dhead h4{margin:0;font-size:14px;font-weight:700;padding-right:26px;line-height:1.3}
+#dhead .ds{font-size:11.5px;color:rgba(255,255,255,.78);margin-top:5px;font-family:'JetBrains Mono',monospace}
+#dx{position:absolute;top:12px;right:14px;background:none;border:none;color:#fff;font-size:17px;font-weight:700;cursor:pointer;line-height:1}
+#dwrap{overflow:auto;flex:1}
+#dtab{width:100%;border-collapse:collapse;font-size:12px}
+#dtab thead th{position:sticky;top:0;background:#fff;border-bottom:2px solid var(--border);padding:9px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim);cursor:pointer;white-space:nowrap;user-select:none}
+#dtab th.r{text-align:right}#dtab th .ar{color:var(--accent)}
+#dtab tbody td{padding:7px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+#dtab td.d{font-family:'JetBrains Mono',monospace;color:var(--dim);white-space:nowrap;font-size:11px}
+#dtab td.a{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent);text-align:right;white-space:nowrap}
+#dtab tbody tr:hover{background:var(--bg)}
 .note{font-size:11.5px;color:var(--dim);line-height:1.55;margin-top:14px;max-width:1220px}.note b{color:var(--text)}
-@media(max-width:680px){#svg{height:66vh}#box{max-width:88vw;min-width:0}.kpi{min-width:118px;padding:9px 12px}.kpi .v{font-size:17px}.wrap{padding:14px 12px 50px}.controls{padding:12px}}
+@media(max-width:680px){#svg{height:66vh}#drawer{width:100vw}.kpi{min-width:118px;padding:9px 12px}.kpi .v{font-size:17px}.wrap{padding:14px 12px 50px}.controls{padding:12px}}
 </style></head><body>
 <header><h1>Peak 10 Energy</h1><div class="sub">Funds Flow — into &amp; out of the West Texas National Bank accounts</div></header>
 <div class="wrap">
@@ -62,9 +72,14 @@ rect.node{cursor:pointer}
   <button class="zbtn" id="zin">＋ Zoom</button><button class="zbtn" id="zout">－ Zoom</button><button class="zbtn" id="zreset">Reset view</button>
   <span>Pinch or scroll to zoom · drag / swipe to pan · <b>tap any flow</b> for its top transactions.</span>
  </div>
- <div class="card"><svg id="svg"></svg>
-  <div id="box"><span class="x" id="boxx">✕</span><h4 id="bt"></h4><div class="sub2" id="bs"></div><table id="btab"></table></div>
- </div>
+ <div class="card"><svg id="svg"></svg></div>
+ <div id="scrim"></div>
+ <aside id="drawer">
+  <div id="dhead"><button id="dx">✕</button><h4 id="dt"></h4><div class="ds" id="ds"></div></div>
+  <div id="dwrap"><table id="dtab"><thead><tr>
+    <th data-c="date">Date</th><th data-c="memo">Description</th><th data-c="amt" class="r">Amount</th>
+  </tr></thead><tbody id="dbody"></tbody></table></div>
+ </aside>
  <div class="note">
   <b>Left = cash INTO the WTNB accounts · Right = cash OUT.</b> Flows are colored by type: <b>third-party</b> revenue/receipts and uses;
   <b>intercompany</b> (teal) — money to/from Peak 10 affiliate accounts at other banks (Energy Holdings, GRC, Veritex); <b>internal</b> (grey) —
@@ -181,7 +196,7 @@ function render(){
  BASE_VB=[0,0,W,svgH];svg.setAttribute('viewBox',`0 0 ${W} ${svgH.toFixed(0)}`);
  svg.innerHTML=`<g id="vp">${hdr}<g>${links.join('')}</g><g>${rects.join('')}</g><g>${labels.join('')}</g></g>`;
  applyVP();
- svg.querySelectorAll('path.lnk').forEach(p=>p.addEventListener('click',ev=>{ev.stopPropagation();openBox(+p.dataset.id,ev,p);}));
+ svg.querySelectorAll('path.lnk').forEach(p=>p.addEventListener('click',ev=>{ev.stopPropagation();openDrawer(+p.dataset.id,p);}));
 }
 let BASE_VB=[0,0,W,1000],vp={k:1,x:0,y:0};
 function applyVP(){const g=document.getElementById('vp');if(g)g.setAttribute('transform',`translate(${vp.x} ${vp.y}) scale(${vp.k})`);}
@@ -212,21 +227,29 @@ svgEl.addEventListener('touchmove',ev=>{
  ev.preventDefault();},{passive:false});
 svgEl.addEventListener('touchend',ev=>{
  if(tpan&&!tpan.moved&&(Date.now()-tpan.t)<500){const el=document.elementFromPoint(tpan.x,tpan.y);
-  if(el&&el.classList&&el.classList.contains('lnk'))openBox(+el.dataset.id,{clientX:tpan.x,clientY:tpan.y},el);else closeBox();ev.preventDefault();}
+  if(el&&el.classList&&el.classList.contains('lnk'))openDrawer(+el.dataset.id,el);else closeDrawer();ev.preventDefault();}
  if(ev.touches.length===0){tpan=null;pinch=null;}},{passive:false});
-svgEl.addEventListener('click',()=>{if(!drag||!drag.moved)closeBox();});
-const box=document.getElementById('box');document.getElementById('boxx').onclick=closeBox;
-function closeBox(){box.style.display='none';document.querySelectorAll('path.lnk.sel').forEach(p=>p.classList.remove('sel'));}
-function openBox(id,ev,path){document.querySelectorAll('path.lnk.sel').forEach(p=>p.classList.remove('sel'));path.classList.add('sel');
- const L=LINKS[id];if(!L)return;const internal=L.bucket===INTL;
- const arrow=internal?(L.acct+' ↔ other WTNB accounts'):(L.dir==='in'?(L.bucket+'  →  '+L.acct):(L.acct+'  →  '+L.bucket));
- const tx=L.txns.slice().sort((a,b)=>b[0]-a[0]),top=tx.slice(0,5);
- document.getElementById('bt').textContent=arrow;
- document.getElementById('bs').textContent=(internal?'net ':'')+fmt(L.v)+' · '+tx.length+' txn'+(tx.length===1?'':'s')+' · top '+top.length;
- document.getElementById('btab').innerHTML=top.map(t=>`<tr><td class="d">${esc(t[1])}</td><td>${esc(t[2])}</td><td class="a">${fmtF(t[0])}</td></tr>`).join('');
- const card=box.parentElement.getBoundingClientRect();let lx=ev.clientX-card.left+14,ly=ev.clientY-card.top+14;
- box.style.display='block';const bw=box.offsetWidth,bh=box.offsetHeight;
- if(lx+bw>card.width)lx=card.width-bw-8;if(ly+bh>card.height)ly=Math.max(8,card.height-bh-8);
- box.style.left=lx+'px';box.style.top=ly+'px';}
+svgEl.addEventListener('click',()=>{if(!drag||!drag.moved)closeDrawer();});
+const drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim');
+document.getElementById('dx').onclick=closeDrawer;scrim.onclick=closeDrawer;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
+let curTx=[],curInternal=false,sortState={col:'date',dir:1};
+function closeDrawer(){drawer.classList.remove('open');scrim.classList.remove('open');document.querySelectorAll('path.lnk.sel').forEach(p=>p.classList.remove('sel'));}
+function renderRows(){
+ const c=sortState.col,d=sortState.dir,rows=curTx.slice();
+ rows.sort((a,b)=>{let x,y;if(c==='amt'){x=a[0];y=b[0];}else if(c==='memo'){x=(a[2]||'').toLowerCase();y=(b[2]||'').toLowerCase();}else{x=a[1];y=b[1];}
+  return x<y?-d:x>y?d:0;});
+ document.getElementById('dbody').innerHTML=rows.map(t=>`<tr><td class="d">${esc(t[1])}</td><td>${esc(t[2])}</td><td class="a">${fmtF(t[0])}</td></tr>`).join('');
+ document.querySelectorAll('#dtab th').forEach(th=>{const base=th.getAttribute('data-c'),lbl=th.textContent.replace(/[\s▲▼]+$/,'');
+  th.innerHTML=lbl+(base===c?(d>0?' <span class="ar">▲</span>':' <span class="ar">▼</span>'):'');});}
+document.querySelectorAll('#dtab th').forEach(th=>th.addEventListener('click',()=>{const c=th.getAttribute('data-c');
+ if(sortState.col===c)sortState.dir*=-1;else sortState={col:c,dir:c==='amt'?-1:1};renderRows();}));
+function openDrawer(id,path){document.querySelectorAll('path.lnk.sel').forEach(p=>p.classList.remove('sel'));if(path)path.classList.add('sel');
+ const L=LINKS[id];if(!L)return;curTx=L.txns||[];curInternal=L.bucket===INTL;
+ const arrow=curInternal?(L.acct+' ↔ other WTNB accounts'):(L.dir==='in'?(L.bucket+'  →  '+L.acct):(L.acct+'  →  '+L.bucket));
+ document.getElementById('dt').textContent=arrow;
+ document.getElementById('ds').textContent=(curInternal?'net ':'')+fmt(L.v)+' · '+curTx.length+' transaction'+(curTx.length===1?'':'s');
+ sortState={col:'date',dir:1};renderRows();
+ drawer.classList.add('open');scrim.classList.add('open');}
 render();
 </script></body></html>
